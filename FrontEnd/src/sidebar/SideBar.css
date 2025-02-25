@@ -1,0 +1,21 @@
+/* Sidebar container: aplica o cursor de maozinha */
+.sidebar-container {
+    cursor: pointer;
+  }
+  
+  /* Adiciona a transição suave ao mover a sidebar */
+  .offcanvas {
+    transform: translateX(-100%); /* Sidebar fora da tela inicialmente */
+    transition: transform 0.3s ease; /* Transição suave */
+  }
+  
+  /* Quando a sidebar estiver visível, ela se move para a posição original */
+  .offcanvas.show {
+    transform: translateX(0);
+  }
+  
+  /* Ajusta a posição da sidebar e o efeito de cursor */
+  .menu-icon {
+    cursor: pointer;
+  }
+  

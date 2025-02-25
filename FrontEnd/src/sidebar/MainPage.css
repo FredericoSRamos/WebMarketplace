@@ -1,0 +1,38 @@
+/* Título com transição suave para expandir/recolher categorias */
+h2 {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    font-size: 1.5rem;
+    transition: color 0.3s ease;
+}
+
+/* Categorias: animação de expansão */
+.categories {
+    margin-top: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    transition: max-height 0.5s ease;
+}
+
+.categories > div {
+    margin: 10px;
+}
+
+/* Responsividade para os cards de categoria */
+@media (max-width: 768px) {
+    .categories {
+        display: block;
+    }
+}
+/* Aplica o cursor de mãozinha aos cartões de categoria */
+.category-card {
+    cursor: pointer; /* Mostra a mãozinha quando o mouse passa sobre o card */
+    transition: transform 0.3s ease; /* Adiciona um efeito suave ao passar o mouse */
+}
+
+/* Efeito de leve aumento no tamanho do card ao passar o mouse */
+.category-card:hover {
+    transform: scale(1.05); /* Aumenta levemente o tamanho do card */
+}
