@@ -23,7 +23,7 @@ export default function PechinchaCard({ id }) {
   /** Detalhes da pechincha selecionada, obtido pelo ID */
   const pechincha = useSelector(state => selectPechinchasById(state, id));
   /** Detalhes do produto associado à pechincha */
-  const productFound = useSelector(state => selectProductsById(state, pechincha.idProduct));
+  const productFound = useSelector(state => selectProductsById(state, pechincha.productId));
   /** Função para despachar ações do Redux */
   const dispatch = useDispatch();
 
@@ -32,7 +32,7 @@ export default function PechinchaCard({ id }) {
    * Atualiza o status da pechincha para "aceito" e pode atualizar o preço do produto.
    */
   const handleConfirm = () => {
-    dispatch(updatePechinchaServer({ ...pechincha, status: 'aceito' }));
+    dispatch(updatePechinchaServer({ ...pechincha, pstatus: 'aceito' }));
     // Atualizar o preço do produto (comentado, pois não está em uso)
     // dispatch(updateProductServer({ ...productFound, price: pechincha.descount }));
   };
@@ -59,10 +59,10 @@ export default function PechinchaCard({ id }) {
           <h5 className="card-title">{pechincha.name}</h5>
           <p className="card-text">Valor Total: R$ {productFound.price}</p>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <p className="card-text">Valor Pechinchado: R$ {pechincha.descount}</p>
+            <p className="card-text">Valor Pechinchado: R$ {pechincha.discount}</p>
           </div>
 
-          {pechincha.status === 'pendente' && (
+          {pechincha.pstatus === 'pendente' && (
             <div className="button-container">
               <button className="btn btn-success" onClick={handleConfirm}>
                 Confirmar
@@ -73,7 +73,7 @@ export default function PechinchaCard({ id }) {
             </div>
           )}
 
-          {pechincha.status === 'aceito' && (
+          {pechincha.pstatus === 'aceito' && (
             <div className="alert alert-success">Pechincha confirmada!</div>
           )}
         </div>

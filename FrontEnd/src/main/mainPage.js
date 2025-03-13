@@ -62,10 +62,6 @@ export default function MainPage() {
     /** Função para despachar ações do Redux */
     const dispatch = useDispatch();
 
-    useEffect(() => {
-            dispatch(fetchProducts());
-        }, [dispatch]);
-
     /**
      * Efeito colateral que realiza o fetch dos produtos dependendo do status.
      * Tenta novamente em 5 segundos se o status for 'failed'.

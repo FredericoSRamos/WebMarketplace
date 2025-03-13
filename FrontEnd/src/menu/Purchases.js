@@ -26,11 +26,6 @@ export default function Purchases() {
     const error = useSelector(state => state.reviews.error);
     const seller = useSelector(state => state.logins.username);
 
-    useEffect(() => {
-        dispatch(fetchPedidos());
-        dispatch(fetchReviews());
-    }, [dispatch]);
-
     /**
      * Utiliza o hook useEffect para buscar as avaliações sempre que o status mudar para "not_loaded",
      * "saved", "deleted" ou "failed". Em caso de falha, a requisição é repetida após 5 segundos.

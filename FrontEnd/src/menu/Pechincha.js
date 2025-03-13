@@ -27,10 +27,6 @@ export default function Pechincha() {
 
   const dispatch = useDispatch();
 
-  useEffect(() => {
-          dispatch(fetchPechinchas());
-      }, [dispatch]);
-
   /**
    * Realiza a busca pelas pechinchas sempre que o status mudar.
    * 

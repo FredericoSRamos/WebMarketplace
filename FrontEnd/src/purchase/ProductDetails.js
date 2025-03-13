@@ -39,10 +39,6 @@ export default function ProductDetails() {
     const pechinchas = useSelector(selectAllPechinchas);
 
     useEffect(() => {
-            dispatch(fetchPechinchas());
-        }, [dispatch]);
-
-    useEffect(() => {
         if (status === "not_loaded") {
             dispatch(fetchPechinchas());
         } else if (status === 'failed') {
@@ -72,7 +68,7 @@ export default function ProductDetails() {
      * Verifica se já existe uma pechincha para o produto pelo comprador atual.
      * @type {Object|undefined}
      */
-    const pechinchaFound = pechinchas.find(p => p.idProduct === product.id && p.buyer === buyer);
+    const pechinchaFound = pechinchas.find(p => p.productId === product.id && p.buyer === buyer);
     const productFound = useSelector(state => selectProductsById(state, pechinchaFound ? pechinchaFound.idProduct : null));
 
     const handlepayClick = useCallback(() => {
@@ -84,7 +80,7 @@ export default function ProductDetails() {
                 price: pechinchaFound.descount,
                 NomeVendedor: productFound.seller,
                 comprador: buyer,
-                status: 'Finalizado',
+                pstatus: 'Finalizado',
                 endereco: '',
             };
             navigate(`/pagamentosCard/${productFound.id}`, { state: novoPagamento });
@@ -101,7 +97,7 @@ export default function ProductDetails() {
                     PECHINCHAR!
                 </button>
             );
-        } else if (pechinchaFound.status === "aceito") {
+        } else if (pechinchaFound.pstatus === "aceito") {
             setShowButton(       
                 <button className="btn btn-success btn-lg mt-4 w-100" onClick={handlepayClick}>
                     Sua pechincha foi aceita! Clique aqui para comprar
@@ -127,7 +123,7 @@ export default function ProductDetails() {
             seller: product.seller,
             image: product.image,
             buyer: buyer,
-            status: 'pendente'
+            pstatus: 'pendente'
         };
         
         setMessage('Pechincha enviada!');

@@ -8,9 +8,10 @@
 var express = require('express');
 var router = express.Router();
 const bodyParser = require('body-parser');
-const Reviews = require('../models/reviews');
 var authenticate = require('../authenticate');
 const { getIo } = require('../socket');
+const dynamoDB = require('../routes/dynamoDB');
+const { v4: uuidv4 } = require('uuid');
 
 const io = getIo();
 
@@ -22,22 +23,22 @@ router.use(bodyParser.json());
  * @name GET /reviews
  * @function
  * @memberof module:routes/reviews
- * @param {Object} req - O objeto de requisição HTTP.
- * @param {Object} res - O objeto de resposta HTTP.
- * @param {Function} next - Função de callback para o próximo middleware.
- * @returns {void} Retorna todas as avaliações ou uma mensagem de erro.
  */
 router.route('/')
   .get(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const review = await Reviews.find({});
+      const params = {
+        TableName: 'CargoshopReviews'
+      };
+
+      const data = await dynamoDB.scan(params).promise();
       res.statusCode = 200;
-      res.json(review);
+      res.json(data.Items);
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to retrieve reviews" });
     }
   })
   /**
@@ -46,22 +47,32 @@ router.route('/')
    * @name POST /reviews
    * @function
    * @memberof module:routes/reviews
-   * @param {Object} req - O objeto de requisição HTTP que contém os dados da nova avaliação.
-   * @param {Object} res - O objeto de resposta HTTP.
-   * @param {Function} next - Função de callback para o próximo middleware.
-   * @returns {void} Retorna a avaliação criada ou uma mensagem de erro.
    */
   .post(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const review = await Reviews.create(req.body);
+      const newReview = {
+        id: uuidv4(),
+        orderId: req.body.orderId,
+        buyer: req.body.buyer,
+        seller: req.body.seller,
+        rate: req.body.rate,
+        message: req.body.message
+      };
+
+      const params = {
+        TableName: 'CargoshopReviews',
+        Item: newReview
+      };
+      await dynamoDB.put(params).promise();
+
       io.emit('reviewUpdated');
       res.statusCode = 200;
-      res.json(review);
+      res.json(newReview);
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to create review" });
     }
   });
 
@@ -71,28 +82,30 @@ router.route('/')
  * @name GET /reviews/:id
  * @function
  * @memberof module:routes/reviews
- * @param {Object} req - O objeto de requisição HTTP.
- * @param {Object} res - O objeto de resposta HTTP.
- * @param {Function} next - Função de callback para o próximo middleware.
- * @returns {void} Retorna a avaliação encontrada ou uma mensagem de erro.
  */
 router.route('/:id')
   .get(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const review = await Reviews.findById(req.params.id);
-      if (review != null) {
+      const params = {
+        TableName: 'CargoshopReviews',
+        Key: {
+          id: req.params.id
+        }
+      };
+
+      const data = await dynamoDB.get(params).promise();
+      if (data.Item) {
         res.statusCode = 200;
-        res.json(review);
+        res.json(data.Item);
       } else {
-        let err = {};
         res.statusCode = 404;
-        res.json(err);
+        res.json({ error: "Review not found" });
       }
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to get review" });
     }
   })
   /**
@@ -101,26 +114,40 @@ router.route('/:id')
    * @name PUT /reviews/:id
    * @function
    * @memberof module:routes/reviews
-   * @param {Object} req - O objeto de requisição HTTP que contém os dados da avaliação a ser atualizada.
-   * @param {Object} res - O objeto de resposta HTTP.
-   * @param {Function} next - Função de callback para o próximo middleware.
-   * @returns {void} Retorna a avaliação atualizada ou uma mensagem de erro.
    */
   .put(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const review = await Reviews.findByIdAndUpdate(req.params.id, {
-        $set: req.body
-      }, {
-        new: true
-      });
+      const reviewId = req.params.id;
+
+      const { orderId, buyer, seller, rate, message } = req.body;
+
+      const params = {
+        TableName: 'CargoshopReviews',
+        Key: {
+          id: reviewId,
+        },
+        UpdateExpression: 'set orderId = :orderId, buyer = :buyer, seller = :seller, rate = :rate, message = :message',
+        ExpressionAttributeValues: {
+          ':orderId': orderId,
+          ':buyer': buyer,
+          ':seller': seller,
+          ':rate': rate,
+          ':message': message
+        },
+        ReturnValues: 'ALL_NEW',
+      };
+
+      const result = await dynamoDB.update(params).promise();
+
       io.emit('reviewUpdated');
+
       res.statusCode = 200;
-      res.json(review);
+      res.json(result.Attributes);
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to update review" });
     }
   })
   /**
@@ -129,22 +156,25 @@ router.route('/:id')
    * @name DELETE /reviews/:id
    * @function
    * @memberof module:routes/reviews
-   * @param {Object} req - O objeto de requisição HTTP.
-   * @param {Object} res - O objeto de resposta HTTP.
-   * @param {Function} next - Função de callback para o próximo middleware.
-   * @returns {void} Retorna o id da avaliação excluída ou uma mensagem de erro.
    */
   .delete(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const response = await Reviews.findByIdAndDelete(req.params.id);
+      const params = {
+        TableName: 'CargoshopReviews',
+        Key: {
+          id: req.params.id
+        }
+      };
+
+      await dynamoDB.delete(params).promise();
       io.emit('reviewUpdated');
       res.statusCode = 200;
-      res.json(response);
+      res.json({ id: req.params.id });
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to delete review" });
     }
   });
 

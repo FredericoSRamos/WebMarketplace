@@ -26,10 +26,6 @@ export default function Pedidos() {
   const buyer = useSelector(state => state.logins.username);
 
   useEffect(() => {
-    dispatch(fetchPedidos());
-}, [dispatch]);
-
-  useEffect(() => {
     if (status === "not_loaded") {
       dispatch(fetchPedidos());
     } else if (status === 'failed') {

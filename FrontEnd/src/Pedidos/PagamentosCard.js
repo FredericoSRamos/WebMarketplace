@@ -56,7 +56,7 @@ export default function PagamentosCard() {
     dispatch(addPedidoServer(pedidoAtualizado));
     dispatch(removeProductServer(pedidoAtualizado.idProduto));
 
-    const filteredPechinchas = pechinchas.filter(pechincha => pechincha.idProduct === pedidoAtualizado.idProduto);
+    const filteredPechinchas = pechinchas.filter(pechincha => pechincha.productId === pedidoAtualizado.idProduto);
     filteredPechinchas.forEach(pechincha => {
       dispatch(removePechinchaServer(pechincha.id));
     })

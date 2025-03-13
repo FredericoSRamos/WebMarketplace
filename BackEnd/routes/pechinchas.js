@@ -8,9 +8,10 @@
 var express = require('express');
 var router = express.Router();
 const bodyParser = require('body-parser');
-const Pechinchas = require('../models/pechinchas');
 var authenticate = require('../authenticate');
 const { getIo } = require('../socket');
+const dynamoDB = require('../routes/dynamoDB');
+const { v4: uuidv4 } = require('uuid');
 
 const io = getIo();
 
@@ -22,22 +23,22 @@ router.use(bodyParser.json());
  * @name GET /pechinchas
  * @function
  * @memberof module:routes/pechinchas
- * @param {Object} req - O objeto de requisição HTTP.
- * @param {Object} res - O objeto de resposta HTTP.
- * @param {Function} next - Função de callback para o próximo middleware.
- * @returns {void} Retorna todas as pechinchas ou uma mensagem de erro.
  */
 router.route('/')
   .get(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const pechincha = await Pechinchas.find({});
+      const params = {
+        TableName: 'CargoshopPechinchas'
+      };
+
+      const data = await dynamoDB.scan(params).promise();
       res.statusCode = 200;
-      res.json(pechincha);
+      res.json(data.Items);
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to retrieve pechinchas" });
     }
   })
   /**
@@ -46,22 +47,41 @@ router.route('/')
    * @name POST /pechinchas
    * @function
    * @memberof module:routes/pechinchas
-   * @param {Object} req - O objeto de requisição HTTP que contém os dados da nova pechincha.
-   * @param {Object} res - O objeto de resposta HTTP.
-   * @param {Function} next - Função de callback para o próximo middleware.
-   * @returns {void} Retorna a pechincha criada ou uma mensagem de erro.
    */
   .post(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const pechincha = await Pechinchas.create(req.body);
+      const productParams = {
+        TableName: 'CargoshopProducts',
+        Key: {
+          id: req.body.idProduct
+        }
+      };
+      const data = (await dynamoDB.get(productParams).promise()).Item;
+      const newPechincha = {
+        id: uuidv4(),
+        productId: data.id,
+        discount: req.body.descount,
+        image: data.image,
+        price: data.price,
+        buyer: req.body.buyer,
+        seller: data.seller,
+        pstatus: req.body.pstatus
+      };
+
+      const params = {
+        TableName: 'CargoshopPechinchas',
+        Item: newPechincha
+      };
+      await dynamoDB.put(params).promise();
+
       io.emit('pechinchaUpdated');
       res.statusCode = 200;
-      res.json(pechincha);
+      res.json(newPechincha);
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to create pechincha" });
     }
   });
 
@@ -71,28 +91,30 @@ router.route('/')
  * @name GET /pechinchas/:id
  * @function
  * @memberof module:routes/pechinchas
- * @param {Object} req - O objeto de requisição HTTP.
- * @param {Object} res - O objeto de resposta HTTP.
- * @param {Function} next - Função de callback para o próximo middleware.
- * @returns {void} Retorna a pechincha encontrada ou uma mensagem de erro.
  */
 router.route('/:id')
   .get(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const pechincha = await Pechinchas.findById(req.params.id);
-      if (pechincha != null) {
+      const params = {
+        TableName: 'CargoshopPechinchas',
+        Key: {
+          id: req.params.id
+        }
+      };
+
+      const data = await dynamoDB.get(params).promise();
+      if (data.Item) {
         res.statusCode = 200;
-        res.json(pechincha);
+        res.json(data.Item);
       } else {
-        let err = {};
         res.statusCode = 404;
-        res.json(err);
+        res.json({ error: "Pechincha not found" });
       }
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to get pechincha" });
     }
   })
   /**
@@ -101,26 +123,55 @@ router.route('/:id')
    * @name PUT /pechinchas/:id
    * @function
    * @memberof module:routes/pechinchas
-   * @param {Object} req - O objeto de requisição HTTP que contém os dados da pechincha a ser atualizada.
-   * @param {Object} res - O objeto de resposta HTTP.
-   * @param {Function} next - Função de callback para o próximo middleware.
-   * @returns {void} Retorna a pechincha atualizada ou uma mensagem de erro.
    */
   .put(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const pechincha = await Pechinchas.findByIdAndUpdate(req.params.id, {
-        $set: req.body
-      }, {
-        new: true
-      });
+      const pechinchaId = req.params.id;
+
+      const { productId, discount, price, buyer, seller, pstatus } = req.body;
+
+      const productParams = {
+        TableName: 'CargoshopProducts',
+        Key: {
+          id: productId
+        }
+      };
+
+      const productData = (await dynamoDB.get(productParams).promise()).Item;
+      if (!productData) {
+        res.statusCode = 404;
+        return res.json({ error: "Product not found" });
+      }
+
+      const params = {
+        TableName: 'CargoshopPechinchas',
+        Key: {
+          id: pechinchaId
+        },
+        UpdateExpression: 'set productId = :productId, discount = :discount, price = :price, buyer = :buyer, seller = :seller, image = :image, pstatus = :pstatus',
+        ExpressionAttributeValues: {
+          ':productId': productId,
+          ':discount': discount,
+          ':price': price,
+          ':buyer': buyer,
+          ':seller': seller,
+          ':image': productData.image,
+          ':pstatus': pstatus
+        },
+        ReturnValues: 'ALL_NEW'
+      };
+
+      const result = await dynamoDB.update(params).promise();
+
       io.emit('pechinchaUpdated');
+
       res.statusCode = 200;
-      res.json(pechincha);
+      res.json(result.Attributes);
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to update pechincha" });
     }
   })
   /**
@@ -129,22 +180,25 @@ router.route('/:id')
    * @name DELETE /pechinchas/:id
    * @function
    * @memberof module:routes/pechinchas
-   * @param {Object} req - O objeto de requisição HTTP.
-   * @param {Object} res - O objeto de resposta HTTP.
-   * @param {Function} next - Função de callback para o próximo middleware.
-   * @returns {void} Retorna o id da pechincha excluída ou uma mensagem de erro.
    */
   .delete(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const response = await Pechinchas.findByIdAndDelete(req.params.id);
+      const params = {
+        TableName: 'CargoshopPechinchas',
+        Key: {
+          id: req.params.id
+        }
+      };
+
+      await dynamoDB.delete(params).promise();
       io.emit('pechinchaUpdated');
       res.statusCode = 200;
-      res.json(response.id);
+      res.json({ id: req.params.id });
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to delete pechincha" });
     }
   });
 

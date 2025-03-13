@@ -69,7 +69,7 @@ export default function ReviewForm() {
             review.orderId = orderId;
             dispatch(addReviewServer(review));
         } else {
-            dispatch(updateReviewServer({ ...review, id: reviewFound.id }));
+            dispatch(updateReviewServer({ ...review, orderId: reviewFound.orderId, id: reviewFound.id }));
         }
 
         navigate('/avaliacoes');

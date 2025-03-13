@@ -61,7 +61,7 @@ uploadRouter.use(bodyParser.json());
  * @returns {Object} Retorna os dados do arquivo enviado no formato JSON.
  */
 uploadRouter.route('/')
-    .get(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+    .get((req, res, next) => {
         res.statusCode = 403;
         res.end('GET operation not supported on /imageUpload');
     })
@@ -81,11 +81,11 @@ uploadRouter.route('/')
         res.setHeader('Content-Type', 'application/json');
         res.json(req.file); // Retorna os dados do arquivo enviado
     })
-    .put(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+    .put((req, res, next) => {
         res.statusCode = 403;
         res.end('PUT operation not supported on /imageUpload');
     })
-    .delete(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+    .delete((req, res, next) => {
         res.statusCode = 403;
         res.end('DELETE operation not supported on /imageUpload');
     });

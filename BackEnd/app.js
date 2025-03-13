@@ -1,25 +1,11 @@
 var express = require('express');
 var path = require('path');
-var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var passport = require('passport');
-var session = require('express-session');
 
-var config = require('./config');
-const mongoose = require('mongoose');
 const cors = require('./routes/cors');
 
 const { setupSocket } = require('./socket');
-
-const url = config.mongoUrl;
-const connect = mongoose.connect(url);
-
-// Conexão com o MongoDB
-connect.then((db) => {
-    console.log("Conectado corretamente ao servidor");
-}, (err) => {
-    console.log(err);
-});
 
 var app = express();
 var http = require('http');
@@ -28,7 +14,6 @@ var server = http.createServer(app);
 
 setupSocket(server);
 
-var indexRouter = require('./routes/index');
 var productsRouter = require('./routes/products');
 var pechinchasRouter = require('./routes/pechinchas');
 var pedidosRouter = require('./routes/pedidos');

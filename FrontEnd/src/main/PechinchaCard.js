@@ -32,7 +32,7 @@ export default function PechinchaCard({ pechincha }) {
   const pechinchaFound = useSelector(state => selectPechinchasById(state, id));
   
   /** Detalhes do produto associado à pechincha */
-  const productFound = useSelector(state => selectProductsById(state, pechincha.idProduct));
+  const productFound = useSelector(state => selectProductsById(state, pechincha.productId));
 
   /** Nome do comprador, obtido do estado de login */
   const buyer = useSelector(state => state.logins.username);
@@ -81,7 +81,7 @@ export default function PechinchaCard({ pechincha }) {
    * @param {Object} data - Dados do formulário com o novo valor da pechincha.
    */
   const handleConfirmEdit = async (data) => {
-    dispatch(updatePechinchaServer({ ...pechincha, descount: data.descount }));
+    dispatch(updatePechinchaServer({ ...pechincha, discount: data.descount }));
     setMessage('Pechincha editada com sucesso!');
   };
 
@@ -117,7 +117,7 @@ export default function PechinchaCard({ pechincha }) {
       idProduto: productFound.id,
       name: productFound.name,
       image: productFound.image,
-      price: pechincha.descount,
+      price: pechincha.discount,
       NomeVendedor: productFound.seller,
       comprador: buyer,
       status: 'Finalizado',
@@ -134,10 +134,10 @@ export default function PechinchaCard({ pechincha }) {
           <h5 className="card-title">{productFound.name}</h5>
           <p className="card-text">Valor Total: R$ {productFound.price}</p>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <p className="card-text">Valor Pechinchado: R$ {pechincha.descount}</p>
+            <p className="card-text">Valor Pechinchado: R$ {pechincha.discount}</p>
           </div>
 
-          {pechincha.status === 'pendente' && (
+          {pechincha.pstatus === 'pendente' && (
             <div className="button-container">
               <button className="btn btn-danger button" onClick={handleCancelClick}>
                 Cancelar Pechincha
@@ -148,7 +148,7 @@ export default function PechinchaCard({ pechincha }) {
             </div>
           )}
 
-          {pechincha.status === 'aceito' && (
+          {pechincha.pstatus === 'aceito' && (
             <div>
               <button className="btn btn-success my-2" onClick={handlepayClick}>
                 Pagar!
@@ -185,7 +185,7 @@ export default function PechinchaCard({ pechincha }) {
                   id="price"
                   max={0.9 * productFound.price}
                   min={0.1 * productFound.price}
-                  defaultValue={pechinchaOnLoad.descount}
+                  defaultValue={pechinchaOnLoad.discount}
                   {...register("descount")}
                 />
               </div>

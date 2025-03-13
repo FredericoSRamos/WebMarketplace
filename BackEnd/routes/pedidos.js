@@ -1,150 +1,164 @@
-/**
- * Define as rotas de manipulação de pedidos, permitindo operações CRUD (Create, Read, Update, Delete) em pedidos.
- * As rotas são protegidas por autenticação, sendo necessário que o usuário esteja autenticado para acessar os endpoints.
- * 
- * @module routes/pedidos
- */
-
 var express = require('express');
 var router = express.Router();
 const bodyParser = require('body-parser');
-const Pedidos = require('../models/pedidos');
+const dynamoDB = require('../routes/dynamoDB');
 var authenticate = require('../authenticate');
 const { getIo } = require('../socket');
+const { v4: uuidv4 } = require('uuid');
 
 const io = getIo();
 
 router.use(bodyParser.json());
 
 /**
- * Rota para listar todos os pedidos ou criar um novo pedido.
+ * List all orders or create a new order
  * 
- * @name GET /pedidos
- * @function
- * @memberof module:routes/pedidos
- * @param {Object} req - O objeto de requisição HTTP.
- * @param {Object} res - O objeto de resposta HTTP.
- * @param {Function} next - Função de callback para o próximo middleware.
- * @returns {void} Retorna todos os pedidos ou uma mensagem de erro.
+ * GET /pedidos and POST /pedidos
  */
 router.route('/')
   .get(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const pedido = await Pedidos.find({});
+      const params = {
+        TableName: 'CargoshopOrders',
+      };
+
+      const data = await dynamoDB.scan(params).promise();
       res.statusCode = 200;
-      res.json(pedido);
+      res.json(data.Items);
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to retrieve orders" });
     }
   })
-  /**
-   * Rota para criar um novo pedido.
-   * 
-   * @name POST /pedidos
-   * @function
-   * @memberof module:routes/pedidos
-   * @param {Object} req - O objeto de requisição HTTP que contém os dados do novo pedido.
-   * @param {Object} res - O objeto de resposta HTTP.
-   * @param {Function} next - Função de callback para o próximo middleware.
-   * @returns {void} Retorna o pedido criado ou uma mensagem de erro.
-   */
   .post(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const pedido = await Pedidos.create(req.body);
+      const newOrder = {
+        id: uuidv4(),
+        endereco: req.body.endereco,
+        opcaoEnvio: req.body.opcaoEnvio,
+        formaPagamento: req.body.formaPagamento,
+        idProduto: req.body.idProduto,
+        name: req.body.name,
+        price: req.body.price,
+        image: req.body.image,
+        NomeVendedor: req.body.NomeVendedor,
+        comprador: req.body.comprador,
+        status: req.body.status,
+      };
+
+      const params = {
+        TableName: 'CargoshopOrders',
+        Item: newOrder,
+      };
+
+      await dynamoDB.put(params).promise();
       io.emit('pedidoUpdated');
       res.statusCode = 200;
-      res.json(pedido);
+      res.json(newOrder);
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to create order" });
     }
   });
 
 /**
- * Rota para acessar, atualizar ou excluir um pedido específico.
+ * Get, update, or delete a specific order by its ID
  * 
- * @name GET /pedidos/:id
- * @function
- * @memberof module:routes/pedidos
- * @param {Object} req - O objeto de requisição HTTP.
- * @param {Object} res - O objeto de resposta HTTP.
- * @param {Function} next - Função de callback para o próximo middleware.
- * @returns {void} Retorna o pedido encontrado ou uma mensagem de erro.
+ * GET /pedidos/:id, PUT /pedidos/:id, DELETE /pedidos/:id
  */
 router.route('/:id')
   .get(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const pedido = await Pedidos.findById(req.params.id);
-      if (pedido != null) {
+      const params = {
+        TableName: 'CargoshopOrders',
+        Key: {
+          id: req.params.id,
+        },
+      };
+
+      const data = await dynamoDB.get(params).promise();
+      if (data.Item) {
         res.statusCode = 200;
-        res.json(pedido);
+        res.json(data.Item);
       } else {
-        let err = {};
         res.statusCode = 404;
-        res.json(err);
+        res.json({ error: "Order not found" });
       }
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to retrieve order" });
     }
   })
-  /**
-   * Rota para atualizar um pedido específico.
-   * 
-   * @name PUT /pedidos/:id
-   * @function
-   * @memberof module:routes/pedidos
-   * @param {Object} req - O objeto de requisição HTTP que contém os dados do pedido a ser atualizado.
-   * @param {Object} res - O objeto de resposta HTTP.
-   * @param {Function} next - Função de callback para o próximo middleware.
-   * @returns {void} Retorna o pedido atualizado ou uma mensagem de erro.
-   */
   .put(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const pedido = await Pedidos.findByIdAndUpdate(req.params.id, {
-        $set: req.body
-      }, {
-        new: true
-      });
-      io.emit('pedidoUpdated');
+      const params = {
+        TableName: 'CargoshopOrders',
+        Key: {
+          id: req.params.id,
+        },
+        UpdateExpression: 'set #endereco = :endereco, #opcaoEnvio = :opcaoEnvio, #formaPagamento = :formaPagamento, #name = :name, #price = :price, #image = :image, #NomeVendedor = :NomeVendedor, #comprador = :comprador, #status = :status',
+        ExpressionAttributeNames: {
+          '#endereco': 'endereco',
+          '#opcaoEnvio': 'opcaoEnvio',
+          '#formaPagamento': 'formaPagamento', 
+          '#name': 'name',
+          '#price': 'price',
+          '#image': 'image',
+          '#NomeVendedor': 'NomeVendedor',
+          '#comprador': 'comprador',
+          '#status': 'status',
+        },
+        ExpressionAttributeValues: {
+          ':endereco': req.body.endereco,
+          ':opcaoEnvio': req.body.opcaoEnvio,
+          ':formaPagamento': req.body.formaPagamento,
+          ':name': req.body.name,
+          ':price': req.body.price,
+          ':image': req.body.image,
+          ':NomeVendedor': req.body.NomeVendedor,
+          ':comprador': req.body.comprador,
+          ':status': req.body.status,
+        },
+        ReturnValues: 'ALL_NEW',
+      };
+
+      const data = await dynamoDB.update(params).promise();
+
+      io.emit('pedidoUpdated'); 
+
       res.statusCode = 200;
-      res.json(pedido);
+      res.json(data.Attributes);
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to update order" });
     }
   })
-  /**
-   * Rota para excluir um pedido específico.
-   * 
-   * @name DELETE /pedidos/:id
-   * @function
-   * @memberof module:routes/pedidos
-   * @param {Object} req - O objeto de requisição HTTP.
-   * @param {Object} res - O objeto de resposta HTTP.
-   * @param {Function} next - Função de callback para o próximo middleware.
-   * @returns {void} Retorna o id do pedido excluído ou uma mensagem de erro.
-   */
   .delete(authenticate.verifyUser, async (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-      const response = await Pedidos.findByIdAndDelete(req.params.id);
+      const params = {
+        TableName: 'CargoshopOrders',
+        Key: {
+          id: req.params.id,
+        },
+      };
+
+      const data = await dynamoDB.delete(params).promise();
       io.emit('pedidoUpdated');
       res.statusCode = 200;
-      res.json(response.id);
+      res.json({ id: req.params.id });
     } catch (err) {
       console.log(err);
-      res.statusCode = 404;
-      res.json({});
+      res.statusCode = 500;
+      res.json({ error: "Failed to delete order" });
     }
   });
 
