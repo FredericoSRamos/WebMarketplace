@@ -20,7 +20,8 @@ This is a web-based marketplace application developed as part of a Web Software 
   - JWT (JSON Web Tokens) for user authentication and authorization, ensuring that only authenticated users can access certain features.
 
 - **Database:**
-  - MongoDB as the database for storing user and product data.
+  - DynamoDB as the batabase for storing user and product data.
+  - ~MongoDB as the database for storing user and product data.~
 
 ## Features
 - **User Authentication:**
@@ -46,7 +47,6 @@ This is a web-based marketplace application developed as part of a Web Software 
 ### Prerequisites
 
 - Node.js
-- MongoDB
 
 ### Steps
 
@@ -66,7 +66,7 @@ This is a web-based marketplace application developed as part of a Web Software 
    npm install
 
 
-3. Update the config.js file wih your mongodb url
+3. Create a config.js file wih your API keys for DynamoDB and a secret key for JWT
 
 4. Lastly, start both the frontend and backend with npm start
 
